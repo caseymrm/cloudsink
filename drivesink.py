@@ -64,7 +64,6 @@ class CloudNode(object):
                 "parents": [self.node["id"]]
             })),
             ("content", (name, open(local_path, "rb")))])
-        logging.debug(m.to_string())
         if existing_node:
             # TODO: this is under-documented and currently 500s on Amazon's side
             node = CloudNode(DriveSink.instance().request_content(
