@@ -60,10 +60,10 @@ class CloudNode(object):
         m = requests_toolbelt.MultipartEncoder([
             ("metadata", json.dumps({
                 "name": name,
-                "parents": [self.node["id"]],
-                "kind": "FILE"
+                "kind": "FILE",
+                "parents": [self.node["id"]]
             })),
-            ("content", (name, open(local_path, "rb"), "image/gif"))])
+            ("content", (name, open(local_path, "rb")))])
         logging.debug(m.to_string())
         if existing_node:
             # TODO: this is under-documented and currently 500s on Amazon's side
@@ -285,9 +285,9 @@ def main():
 
 logging.basicConfig(
     format = "%(levelname) -10s %(module)s:%(lineno)s %(funcName)s %(message)s",
-    level = logging.INFO
+    level = logging.DEBUG
 )
-logging.getLogger("requests").setLevel(logging.INFO)
+logging.getLogger("requests").setLevel(logging.WARNING)
 
 if __name__ == "__main__":
     main()
