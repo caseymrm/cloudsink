@@ -9,7 +9,6 @@ import requests
 import requests_toolbelt
 import uuid
 
-
 class CloudNode(object):
     def __init__(self, node):
         self.node = node
@@ -29,27 +28,52 @@ class CloudNode(object):
             node = self._make_child_folder(name)
         return node
 
+    # based on http://stackoverflow.com/questions/35817/how-to-escape-os-system-calls-in-python
+    def shellquote(self, s):
+        return "'" + s.replace("'", "'\\''") + "'"
+
+    # based on https://github.com/cnbeining/Amazon-Cloud-Drive-Python-SDK/blob/master/acd.py
+    def upload_file_curl(self, local_path, parents='', labels = '', properties = []):
+        name = os.path.basename(local_path)
+        url = DriveSink.instance()._config()["contentUrl"] + 'nodes?&suppress=deduplication'
+        metadata = {"name": name, "kind": "FILE"}
+        if parents:
+            metadata['parents'] = parents
+        if labels:
+            metadata['labels'] = labels
+        if properties:
+            metadata['properties'] = properties
+        metadataform = self.shellquote("metadata=" + json.dumps(metadata))
+        contentform = self.shellquote("content=@" + local_path)
+        command = 'curl -k -X POST --form {metadata} --form {content} "{url}" --header  "{Authorization}"' .format(metadata = metadataform, content = contentform, url = url, Authorization = "Authorization: Bearer %s" % DriveSink.instance()._config()["access_token"])
+        logging.debug(command)
+        tmp = os.popen(command).readlines()
+        #logging.debug(tmp[0])
+        return json.loads(tmp[0])
+
+
     def upload_child_file(self, name, local_path, existing_node=None):
         logging.info("Uploading %s to %s", local_path, self.node["name"])
+        node = self.upload_file_curl(local_path, parents=[self.node["id"]] )
+        
+        """
         m = requests_toolbelt.MultipartEncoder([
             ("metadata", json.dumps({
                 "name": name,
                 "kind": "FILE",
-                "parents": [self.node["id"]],
+                "parents": [self.node["id"]]
             })),
             ("content", (name, open(local_path, "rb")))])
         if existing_node:
-            """
             # TODO: this is under-documented and currently 500s on Amazon's side
             node = CloudNode(DriveSink.instance().request_content(
                 "%%snodes/%s/content" % existing_node.node["id"],
-                method="put", data=m, headers={"Content-Type": m.content_type}))
-            """
+                method="put", data=m, headers={"Content-Type": "multipart/form-data"}))
             old_info = DriveSink.instance().request_metadata(
                 "%%s/trash/%s" % existing_node.node["id"], method="put")
         node = CloudNode(DriveSink.instance().request_content(
-            "%snodes", method="post", data=m,
-            headers={"Content-Type": m.content_type}))
+            "%snodes?localId=a", method="post", data=m, headers={"Content-Type": "multipart/form-data"}))
+        """
         self._children[name] = node
 
     def download_file(self, local_path):
